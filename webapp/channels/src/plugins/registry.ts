@@ -29,6 +29,7 @@ import {
 } from 'actions/websocket_actions';
 import {clearLoggedDecoratorErrors} from 'selectors/channel_decorator';
 import {clearLoggedSuffixErrors} from 'selectors/composer_placeholder_suffix';
+import {clearLoggedPostDecoratorErrors} from 'selectors/post_decorator';
 import store from 'stores/redux_store';
 
 import {compassIconForName} from 'components/channel_type_icon';
@@ -77,11 +78,13 @@ import type {
     ChannelIconOverrideRegistration,
     ChannelDecoratorRegistration,
     ComposerPlaceholderSuffixRegistration,
+    PostDecoratorRegistration,
 } from 'types/store/plugins';
 
 const defaultShouldRender = () => true;
 
 const VALID_CHANNEL_DECORATOR_SLOTS = new Set<string>(['left_of_channel_name', 'intro', 'above_composer', 'mount_overlay']);
+const VALID_POST_DECORATOR_SLOTS = new Set<string>(['post_header_badge']);
 
 type DPluginComponentProp = {component: React.ComponentType<unknown>};
 function dispatchPluginComponentAction(name: keyof PluginsState['components'], pluginId: string, component: React.ComponentType<any>, id = generateId()) {
@@ -1449,6 +1452,56 @@ export default class PluginRegistry {
             component,
         });
         return id;
+    });
+
+    /**
+     * Register a React component to render at a specific slot on posts matched by the provided
+     * predicate. The matcher receives the post and the full Redux state so predicates can read
+     * plugin-owned slices (e.g., state['plugins-<pluginId>']).
+     *
+     * Slots:
+     *   'post_header_badge' — badge rendered in the badges area of each post's header,
+     *     immediately after the post timestamp. All matching registrations render side-by-side.
+     *
+     * Store the returned id and pass it to unregisterPostDecorator in uninitialize().
+     *
+     * @returns Auto-generated unique id for this registration.
+     */
+    registerPostDecorator = reArg(['slot', 'matcher', 'component'], ({slot, matcher, component}: {
+        slot: PostDecoratorRegistration['slot'];
+        matcher: PostDecoratorRegistration['matcher'];
+        component: PostDecoratorRegistration['component'];
+    }) => {
+        if (!VALID_POST_DECORATOR_SLOTS.has(slot)) {
+            // eslint-disable-next-line no-console
+            console.warn(`registerPostDecorator: plugin '${this.id}' supplied unknown slot '${slot}' — registration ignored.`);
+            return generateId();
+        }
+        const id = generateId();
+        dispatchPluginComponentWithData('PostDecorator', {
+            id,
+            pluginId: this.id,
+            slot,
+            matcher,
+            component,
+        });
+        return id;
+    });
+
+    /**
+     * Remove a post decorator registered by this plugin.
+     * Pass the id returned by registerPostDecorator.
+     * Removal is scoped to this plugin: only entries with a matching (pluginId, id) pair are removed.
+     * Unregistering an unknown id is a no-op.
+     */
+    unregisterPostDecorator = reArg(['id'], ({id}: {id: string}) => {
+        clearLoggedPostDecoratorErrors(this.id);
+        store.dispatch({
+            type: ActionTypes.REMOVED_PLUGIN_COMPONENT_BY_ID,
+            name: 'PostDecorator',
+            pluginId: this.id,
+            id,
+        });
     });
 
     /**
