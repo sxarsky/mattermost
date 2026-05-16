@@ -262,21 +262,6 @@ function components(state: PluginsState['components'] = initialComponents, actio
     }
     case ActionTypes.REMOVED_PLUGIN_COMPONENT:
         return removePluginComponent(state, action);
-    case ActionTypes.REMOVED_PLUGIN_COMPONENT_BY_ID: {
-        // Scoped removal: removes only the entry matching (name, pluginId, id).
-        if (action.name && action.pluginId && action.id) {
-            const pluggableType = action.name as keyof PluginsState['components'];
-            const componentList = state[pluggableType] || [];
-            const nextArray = componentList.filter((c) => !(c.pluginId === action.pluginId && c.id === action.id));
-            if (nextArray.length === componentList.length) {
-                return state;
-            }
-            return {...state, [pluggableType]: nextArray};
-        }
-        // eslint-disable-next-line no-console
-        console.warn(`REMOVED_PLUGIN_COMPONENT_BY_ID: missing or empty field(s) — name: '${action.name}', pluginId: '${action.pluginId}', id: '${action.id}'`);
-        return state;
-    }
     case ActionTypes.REMOVED_WEBAPP_PLUGIN:
         return removePluginComponents(state, action);
 
