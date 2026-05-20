@@ -40,7 +40,7 @@ function iterateMatchersForChannel(
 ): IconGlyphTypes | null {
     for (const entry of overrides) {
         try {
-          if (entry.matcher(state, channel) === true) {
+            if (entry.matcher(state, channel) === true) {
                 return entry.iconName;
             }
         } catch (err) {
