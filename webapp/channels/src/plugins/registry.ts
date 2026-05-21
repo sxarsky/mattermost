@@ -1463,7 +1463,7 @@ export default class PluginRegistry {
      *   'post_header_badge' — badge rendered in the badges area of each post's header,
      *     immediately after the post timestamp. All matching registrations render side-by-side.
      *
-     * Store the returned id and pass it to unregisterPostDecorator in uninitialize().
+     * Registrations are cleaned up automatically when the plugin is removed.
      *
      * @returns Auto-generated unique id for this registration.
      */
@@ -1477,6 +1477,7 @@ export default class PluginRegistry {
             console.warn(`registerPostDecorator: plugin '${this.id}' supplied unknown slot '${slot}' — registration ignored.`);
             return generateId();
         }
+        clearLoggedPostDecoratorErrors(this.id);
         const id = generateId();
         dispatchPluginComponentWithData('PostDecorator', {
             id,
@@ -1486,22 +1487,6 @@ export default class PluginRegistry {
             component,
         });
         return id;
-    });
-
-    /**
-     * Remove a post decorator registered by this plugin.
-     * Pass the id returned by registerPostDecorator.
-     * Removal is scoped to this plugin: only entries with a matching (pluginId, id) pair are removed.
-     * Unregistering an unknown id is a no-op.
-     */
-    unregisterPostDecorator = reArg(['id'], ({id}: {id: string}) => {
-        clearLoggedPostDecoratorErrors(this.id);
-        store.dispatch({
-            type: ActionTypes.REMOVED_PLUGIN_COMPONENT_BY_ID,
-            name: 'PostDecorator',
-            pluginId: this.id,
-            id,
-        });
     });
 
     /**

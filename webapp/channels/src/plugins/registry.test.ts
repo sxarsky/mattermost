@@ -431,38 +431,33 @@ describe('PluginRegistry — registerPostDecorator', () => {
         warnSpy.mockRestore();
     });
 
-    it('(c) unregisterPostDecorator removes only the matching entry', () => {
+    it('(c) REMOVED_WEBAPP_PLUGIN sweeps all post decorators for that plugin', () => {
         const otherRegistry = new PluginRegistry('other_plugin');
 
-        const id1 = registry.registerPostDecorator({
+        registry.registerPostDecorator({
             slot: 'post_header_badge',
             matcher: () => true,
             component: () => null,
         });
-
+        registry.registerPostDecorator({
+            slot: 'post_header_badge',
+            matcher: () => true,
+            component: () => null,
+        });
         otherRegistry.registerPostDecorator({
             slot: 'post_header_badge',
             matcher: () => false,
             component: () => null,
         });
 
-        registry.unregisterPostDecorator({id: id1});
+        mockCurrentStore.dispatch({
+            type: ActionTypes.REMOVED_WEBAPP_PLUGIN,
+            data: {id: PLUGIN_ID},
+        });
 
         const decorators = getDecorators();
         expect(decorators).toHaveLength(1);
         expect(decorators[0].pluginId).toBe('other_plugin');
-    });
-
-    it('(d) unregistering an unknown id is a no-op', () => {
-        registry.registerPostDecorator({
-            slot: 'post_header_badge',
-            matcher: () => true,
-            component: () => null,
-        });
-
-        registry.unregisterPostDecorator({id: 'nonexistent-id'});
-
-        expect(getDecorators()).toHaveLength(1);
     });
 });
 
