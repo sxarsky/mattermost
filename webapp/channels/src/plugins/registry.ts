@@ -1459,11 +1459,14 @@ export default class PluginRegistry {
      * (channel, state, intl) — use the function form to access i18n via intl.formatMessage().
      * Across plugins, suffixes are appended in pluginId alphabetical order; within one plugin,
      * registration order is preserved.
+     *
+     * Registrations are cleaned up automatically when the plugin is removed.
      */
     registerComposerPlaceholderSuffix = reArg(['matcher', 'text'], ({matcher, text}: {
         matcher: ComposerPlaceholderSuffixRegistration['matcher'];
         text: ComposerPlaceholderSuffixRegistration['text'];
     }) => {
+        clearLoggedSuffixErrors(this.id);
         const id = generateId();
         dispatchPluginComponentWithData('ComposerPlaceholderSuffix', {
             id,
@@ -1472,20 +1475,6 @@ export default class PluginRegistry {
             text,
         });
         return id;
-    });
-
-    /**
-     * Remove a composer placeholder suffix registered by this plugin.
-     * Pass the id returned by registerComposerPlaceholderSuffix.
-     */
-    unregisterComposerPlaceholderSuffix = reArg(['id'], ({id}: {id: string}) => {
-        clearLoggedSuffixErrors(this.id);
-        store.dispatch({
-            type: ActionTypes.REMOVED_PLUGIN_COMPONENT_BY_ID,
-            name: 'ComposerPlaceholderSuffix',
-            pluginId: this.id,
-            id,
-        });
     });
 
     /**
