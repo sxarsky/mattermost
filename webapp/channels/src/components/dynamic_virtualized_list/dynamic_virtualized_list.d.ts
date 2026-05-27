@@ -8,14 +8,14 @@ declare module 'components/dynamic_virtualized_list' {
         scrollUpdateWasRequested: boolean;
         clientHeight: number;
         scrollHeight: number;
-    }
+    };
 
     export type OnItemsRenderedArgs = {
         overscanStartIndex: number;
         overscanStopIndex: number;
         visibleStartIndex: number;
         visibleStopIndex: number;
-    }
+    };
 
     interface DynamicVirtualizedListProps {
         canLoadMorePosts: (id: 'BEFORE_ID' | 'AFTER_ID' | undefined) => Promise<void>;

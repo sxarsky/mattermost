@@ -60,7 +60,7 @@ export type Props = {
      * The index number of starting image
      **/
     startIndex: number;
-}
+};
 
 type State = {
     show: boolean;
@@ -73,7 +73,7 @@ type State = {
     showZoomControls: boolean;
     scale: Record<number, number>;
     content: string;
-}
+};
 
 export default class FilePreviewModal extends React.PureComponent<Props, State> {
     static defaultProps = {

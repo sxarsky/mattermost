@@ -24,7 +24,7 @@ export type ChannelBookmark = {
     type: ChannelBookmarkType;
     original_id?: string;
     parent_id?: string;
-}
+};
 
 export type ChannelBookmarkCreate = {
     display_name: string;
@@ -37,7 +37,7 @@ export type ChannelBookmarkCreate = {
 } | {
     type: 'file';
     file_id: string;
-})
+});
 
 export type ChannelBookmarkPatch = {
     file_id?: string;
@@ -46,7 +46,7 @@ export type ChannelBookmarkPatch = {
     link_url?: string;
     image_url?: string;
     emoji?: string;
-}
+};
 
 export type UpdateChannelBookmarkResponse = {
     updated: ChannelBookmark;
@@ -55,8 +55,8 @@ export type UpdateChannelBookmarkResponse = {
 
 export type ChannelBookmarkWithFileInfo = ChannelBookmark & {
     file: FileInfo;
-}
+};
 
 export type ChannelBookmarksState = {
     byChannelId: {[channelId: Channel['id']]: IDMappedObjects<ChannelBookmark>};
-}
+};

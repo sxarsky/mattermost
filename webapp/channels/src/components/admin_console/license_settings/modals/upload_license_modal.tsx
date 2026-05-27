@@ -35,7 +35,7 @@ import './upload_license_modal.scss';
 type Props = {
     onExited?: () => void;
     fileObjFromProps: File | null;
-}
+};
 
 const UploadLicenseModal = (props: Props): JSX.Element | null => {
     const dispatch = useDispatch();

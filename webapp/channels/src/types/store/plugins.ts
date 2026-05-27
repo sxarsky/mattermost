@@ -123,7 +123,7 @@ export type Menu = {
     icon?: React.ReactNode;
     direction?: 'left' | 'right';
     isHeader?: boolean;
-}
+};
 
 type PluginComponent = {
     id: string;
@@ -133,7 +133,7 @@ type PluginComponent = {
 type BasePluggableProps = {
     webSocketClient: WebSocketClient;
     theme: Theme;
-}
+};
 
 export type PluggableText = string | React.ReactNode;
 
@@ -235,11 +235,11 @@ export type DesktopNotificationHook = PluginComponent & {
         error?: string;
         args?: DesktopNotificationArgs;
     }>;
-}
+};
 
 export type FilesWillUploadHook = PluginComponent & {
-    hook: (files: File[], uploadFiles: (files: File[]) => void) => { message?: string; files?: File[] };
-}
+    hook: (files: File[], uploadFiles: (files: File[]) => void) => {message?: string; files?: File[]};
+};
 
 type ProductBaseProps = {theme: Theme};
 export type ProductSubComponentNames = 'mainComponent' | 'publicComponent' | 'headerCentreComponent' | 'headerRightComponent';
@@ -314,7 +314,7 @@ export type ProductComponent = PluginComponent & {
 export type NeedsTeamComponent = PluginComponent & {
     route: string;
     component: React.ComponentType<BasePluggableProps>;
-}
+};
 
 export type FilePreviewComponent = PluginComponent & {
     override: (fileInfo: FileInfo, post?: Post) => boolean;
@@ -323,7 +323,7 @@ export type FilePreviewComponent = PluginComponent & {
         post?: Post;
         onModalDismissed: () => void;
     }>;
-}
+};
 
 export type PostWillRenderEmbedComponent = PluginComponent & {
     component: React.ComponentType<{
@@ -332,7 +332,7 @@ export type PostWillRenderEmbedComponent = PluginComponent & {
     }>;
     match: (arg: PostEmbed) => boolean;
     toggleable: boolean;
-}
+};
 
 export type PostDropdownMenuItemComponent = PluginComponent & {
     text: PluggableText;
@@ -468,7 +468,7 @@ export type GlobalComponent = PluginComponent & {
 
 export type ChannelToastComponent = PluginComponent & {
     component: React.ComponentType<BasePluggableProps>;
-}
+};
 
 export type CreateBoardFromTemplateComponent = PluginComponent & {
     component: React.ComponentType<BasePluggableProps & {
