@@ -514,13 +514,6 @@ const NewChannelModal = () => {
                         />
                     </div>
                 )}
-                {activePluginOption?.extraContent && (
-                    <activePluginOption.extraContent
-                        formState={formState}
-                        setFormState={mergeFormState}
-                        setCanCreate={setPluginCanCreate}
-                    />
-                )}
                 <div className='new-channel-modal-purpose-container'>
                     <Input
                         id='new-channel-modal-purpose'
@@ -635,6 +628,13 @@ const NewChannelModal = () => {
                             </div>
                         )}
                     </div>
+                )}
+                {activePluginOption?.extraContent && (
+                    <activePluginOption.extraContent
+                        formState={formState}
+                        setFormState={mergeFormState}
+                        setCanCreate={setPluginCanCreate}
+                    />
                 )}
             </div>
         </GenericModal>
