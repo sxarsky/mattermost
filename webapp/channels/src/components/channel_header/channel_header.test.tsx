@@ -415,6 +415,7 @@ describe('components/ChannelHeader', () => {
             const dec2 = screen.getByTestId('decorator-dec-after-2');
             expect(dec1).toBeInTheDocument();
             expect(dec2).toBeInTheDocument();
+
             // dec-after-1 must precede dec-after-2 in DOM order
             expect(dec1.compareDocumentPosition(dec2) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
@@ -436,6 +437,7 @@ describe('components/ChannelHeader', () => {
             const muteButton = container.querySelector('#toggleMute');
             expect(dec).toBeInTheDocument();
             expect(muteButton).toBeInTheDocument();
+
             // decorator must come before the mute button in DOM order
             expect(dec.compareDocumentPosition(muteButton!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });

@@ -353,6 +353,5 @@ describe('components/channel_header/ChannelHeaderTitle', () => {
             expect(screen.getByTestId('decorator-dec-bot')).toBeInTheDocument();
         });
     });
-
 });
 
