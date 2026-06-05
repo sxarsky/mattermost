@@ -431,7 +431,7 @@ export type ChannelIconOverrideRegistration = PluginComponent & {
     iconName: IconGlyphTypes;
 };
 
-export type ChannelDecoratorSlot = 'left_of_channel_name' | 'intro' | 'above_composer' | 'mount_overlay';
+export type ChannelDecoratorSlot = 'left_of_channel_name' | 'after_channel_name' | 'intro' | 'above_composer' | 'mount_overlay';
 
 export type ChannelDecoratorRegistration = PluginComponent & {
     slot: ChannelDecoratorSlot;
@@ -463,6 +463,7 @@ export type ChannelTypeOptionComponent = PluginComponent & {
     label: PluggableText;
     description: PluggableText;
     icon: React.ReactNode;
+    createButtonText?: PluggableText;
 
     /** Called with the full Redux state so plugins can read their own plugin-scoped state. */
     isAvailable: (state: GlobalState) => boolean;

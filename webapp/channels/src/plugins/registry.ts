@@ -84,7 +84,7 @@ import type {
 
 const defaultShouldRender = () => true;
 
-const VALID_CHANNEL_DECORATOR_SLOTS = new Set<string>(['left_of_channel_name', 'intro', 'above_composer', 'mount_overlay']);
+const VALID_CHANNEL_DECORATOR_SLOTS = new Set<string>(['left_of_channel_name', 'after_channel_name', 'intro', 'above_composer', 'mount_overlay']);
 const VALID_POST_DECORATOR_SLOTS = new Set<string>(['post_header_badge']);
 
 type DPluginComponentProp = {component: React.ComponentType<unknown>};
@@ -1339,6 +1339,7 @@ export default class PluginRegistry {
         'isAvailable',
         'extraContent',
         'onCreate',
+        'createButtonText',
     ], ({
         id,
         label,
@@ -1347,6 +1348,7 @@ export default class PluginRegistry {
         isAvailable,
         extraContent,
         onCreate,
+        createButtonText,
     }: {
         id: string;
         label: ReactResolvable;
@@ -1355,6 +1357,7 @@ export default class PluginRegistry {
         isAvailable: ChannelTypeOptionComponent['isAvailable'];
         extraContent?: ChannelTypeOptionComponent['extraContent'];
         onCreate: ChannelTypeOptionComponent['onCreate'];
+        createButtonText?: ReactResolvable;
     }) => {
         if (id === Constants.OPEN_CHANNEL || id === Constants.PRIVATE_CHANNEL) {
             throw new Error(
@@ -1370,6 +1373,7 @@ export default class PluginRegistry {
             isAvailable,
             extraContent,
             onCreate,
+            createButtonText: createButtonText ? resolveReactElement(createButtonText) : undefined,
         });
 
         return id;
@@ -1422,6 +1426,9 @@ export default class PluginRegistry {
      * Slots:
      *   'left_of_channel_name' — adornment rendered between the favorite-star and the channel
      *     name in the channel header. Multiple registrations render side-by-side.
+     *   'after_channel_name' — adornment rendered at the start of the channel-header icon group
+     *     (which sits immediately after the channel name), before the mute/members/files icons,
+     *     so it inherits that group's spacing. Multiple registrations render side-by-side.
      *   'intro' — replaces the entire built-in channel intro area (SVG, title, welcome text).
      *     First-matching registration wins; other registrations for the same channel are ignored.
      *   'above_composer' — rendered above the message input in both the center-channel

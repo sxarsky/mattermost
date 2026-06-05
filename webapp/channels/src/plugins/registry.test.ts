@@ -342,6 +342,18 @@ describe('PluginRegistry — registerChannelDecorator', () => {
         expect(decorators[0].slot).toBe('left_of_channel_name');
     });
 
+    it('(a2) after_channel_name is a valid slot', () => {
+        registry.registerChannelDecorator({
+            slot: 'after_channel_name',
+            matcher: () => true,
+            component: () => null,
+        });
+
+        const decorators = getDecorators();
+        expect(decorators).toHaveLength(1);
+        expect(decorators[0].slot).toBe('after_channel_name');
+    });
+
     it('(b) invalid slot emits console.warn and does NOT add entry', () => {
         const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 

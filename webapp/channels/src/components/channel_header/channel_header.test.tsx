@@ -6,13 +6,32 @@ import React from 'react';
 import type {ChannelType} from '@mattermost/types/channels';
 import type {UserCustomStatus} from '@mattermost/types/users';
 
-import {renderWithContext} from 'tests/react_testing_utils';
+import {renderWithContext, screen} from 'tests/react_testing_utils';
 import Constants, {RHSStates} from 'utils/constants';
 import {TestHelper} from 'utils/test_helper';
 
 import ChannelHeader from './channel_header';
 
+// Mock ChannelDecoratorRenderer so decorator tests don't need to bootstrap its Redux deps.
+jest.mock('components/channel_decorator_renderer/channel_decorator_renderer', () => {
+    return ({registration}: {registration: {id: string}}) => (
+        <div data-testid={`decorator-${registration.id}`}/>
+    );
+});
+
+// Mock useChannelDecorators so AfterNameDecorators can be controlled per test. The default of an
+// empty array means pre-existing tests are unaffected (the slot renders nothing by default).
+const mockUseChannelDecorators = jest.fn().mockReturnValue([]);
+jest.mock('hooks/useChannelDecorators', () => ({
+    useChannelDecorators: (...args: unknown[]) => mockUseChannelDecorators(...args),
+}));
+
 describe('components/ChannelHeader', () => {
+    // Default: no after_channel_name decorators, so pre-existing tests are unaffected.
+    beforeEach(() => {
+        mockUseChannelDecorators.mockReturnValue([]);
+    });
+
     const baseProps = {
         actions: {
             showPinnedPosts: jest.fn(),
@@ -350,5 +369,75 @@ describe('components/ChannelHeader', () => {
             <ChannelHeader {...props}/>,
         );
         expect(container).toMatchSnapshot();
+    });
+
+    describe('after_channel_name decorator slot', () => {
+        // AfterNameDecorators renders as the first child of .channel-header__icons (before the
+        // mute trigger and other icons), so decorators inherit the icon-group's even spacing.
+
+        beforeEach(() => {
+            mockUseChannelDecorators.mockReturnValue([]);
+        });
+
+        test('no decorators — slot renders nothing inside the icon group', () => {
+            mockUseChannelDecorators.mockReturnValue([]);
+
+            const {container} = renderWithContext(<ChannelHeader {...populatedProps}/>);
+
+            const iconGroup = container.querySelector('.channel-header__icons');
+            expect(iconGroup).not.toBeNull();
+            expect(screen.queryByTestId(/^decorator-/)).not.toBeInTheDocument();
+        });
+
+        test('one matching decorator — it renders inside the icon group', () => {
+            mockUseChannelDecorators.mockReturnValue([
+                {id: 'dec-after-1', pluginId: 'test-plugin', component: () => null},
+            ]);
+
+            const {container} = renderWithContext(<ChannelHeader {...populatedProps}/>);
+
+            const iconGroup = container.querySelector('.channel-header__icons');
+            expect(iconGroup).not.toBeNull();
+            expect(screen.getByTestId('decorator-dec-after-1')).toBeInTheDocument();
+        });
+
+        test('two matching decorators — both render inside the icon group in order', () => {
+            mockUseChannelDecorators.mockReturnValue([
+                {id: 'dec-after-1', pluginId: 'test-plugin', component: () => null},
+                {id: 'dec-after-2', pluginId: 'test-plugin', component: () => null},
+            ]);
+
+            const {container} = renderWithContext(<ChannelHeader {...populatedProps}/>);
+
+            const iconGroup = container.querySelector('.channel-header__icons');
+            expect(iconGroup).not.toBeNull();
+            const dec1 = screen.getByTestId('decorator-dec-after-1');
+            const dec2 = screen.getByTestId('decorator-dec-after-2');
+            expect(dec1).toBeInTheDocument();
+            expect(dec2).toBeInTheDocument();
+            // dec-after-1 must precede dec-after-2 in DOM order
+            expect(dec1.compareDocumentPosition(dec2) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
+
+        test('decorator renders as first child of .channel-header__icons, before the mute trigger', () => {
+            const mutedProps = {
+                ...populatedProps,
+                isChannelMuted: true,
+            };
+            mockUseChannelDecorators.mockReturnValue([
+                {id: 'dec-after-1', pluginId: 'test-plugin', component: () => null},
+            ]);
+
+            const {container} = renderWithContext(<ChannelHeader {...mutedProps}/>);
+
+            const iconGroup = container.querySelector('.channel-header__icons');
+            expect(iconGroup).not.toBeNull();
+            const dec = screen.getByTestId('decorator-dec-after-1');
+            const muteButton = container.querySelector('#toggleMute');
+            expect(dec).toBeInTheDocument();
+            expect(muteButton).toBeInTheDocument();
+            // decorator must come before the mute button in DOM order
+            expect(dec.compareDocumentPosition(muteButton!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
     });
 });
