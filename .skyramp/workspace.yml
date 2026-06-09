@@ -1,0 +1,48 @@
+# Skyramp Workspace Configuration for Mattermost eval.
+# Copied into the cloned repo by the eval driver before the agent runs.
+#
+# Both services run inside docker-compose.eval.yml at the repo root. The
+# serverStartCommand chains:
+#   1. mattermost-server-builder  → compiles server/bin/mattermost from PR source
+#   2. mattermost-webapp-builder  → builds webapp/channels/dist from PR source
+#   3. up -d --wait postgres + inbucket + mattermost  → ready on :8065
+#
+# get-auth-token.sh prints a Mattermost session token (the value of the `Token`
+# response header from POST /api/v4/users/login). The token works for every
+# /api/v4/* endpoint as either Authorization: Bearer <token> or Cookie:
+# MMAUTHTOKEN=<token>, so a single script serves both services.
+workspace:
+  repoName: sxarsky/mattermost
+  repoUrl: git@github.com:sxarsky/mattermost.git
+metadata:
+  schemaVersion: v1
+  mcpVersion: 1.0.0
+  executorVersion: v1.0.0
+services:
+  - serviceName: mattermost-server
+    language: typescript
+    framework: playwright
+    testDirectory: e2e-tests/playwright/specs/skyramp/api
+    api:
+      authType: bearer
+      authHeader: Authorization
+      authScheme: Bearer
+      baseUrl: http://localhost:8065
+    runtimeDetails:
+      runtime: docker
+      serverStartCommand: docker compose -f docker-compose.eval.yml run --rm mattermost-server-builder && docker compose -f docker-compose.eval.yml run --rm mattermost-webapp-builder && docker compose -f docker-compose.eval.yml up -d --wait postgres inbucket mattermost
+  # mattermost-webapp scopes Playwright UI/E2E tests. UI tests log in via the
+  # rendered form and rely on the browser's MMAUTHTOKEN cookie for subsequent
+  # requests, so no workspace-level auth metadata is needed (matches the
+  # linkwarden-web / medusa admin-dashboard convention).
+  - serviceName: mattermost-webapp
+    language: typescript
+    framework: playwright
+    testDirectory: e2e-tests/playwright/specs/skyramp/ui
+    api:
+      authType: none
+      authHeader: ""
+      baseUrl: http://localhost:8065
+    runtimeDetails:
+      runtime: docker
+      serverStartCommand: docker compose -f docker-compose.eval.yml run --rm mattermost-server-builder && docker compose -f docker-compose.eval.yml run --rm mattermost-webapp-builder && docker compose -f docker-compose.eval.yml up -d --wait postgres inbucket mattermost

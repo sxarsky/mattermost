@@ -1,0 +1,178 @@
+# docker-compose.testbot.yml
+#
+# Local stack used by the Skyramp Testbot to run contract / integration /
+# scenario / UI tests against this Mattermost source tree. It builds the
+# Go server and the React webapp from the *PR source* (not a published
+# image), so generated tests exercise the actual changes under review.
+#
+# Topology:
+#   mattermost-server-builder  (one-shot)  → ./server/bin/mattermost
+#   mattermost-webapp-builder  (one-shot)  → ./webapp/channels/dist
+#   postgres                   (runtime)   → primary datastore
+#   inbucket                   (runtime)   → captures SMTP for signup / reset flows
+#   mattermost                 (runtime)   → serves API + SPA on :8065
+#
+# Usage (matches the workspace.yml serverStartCommand):
+#   docker compose -f docker-compose.testbot.yml run --rm mattermost-server-builder
+#   docker compose -f docker-compose.testbot.yml run --rm mattermost-webapp-builder
+#   docker compose -f docker-compose.testbot.yml up -d --wait postgres inbucket mattermost
+#
+# After it's up, ./get-auth-token.sh prints a bearer token for SKYRAMP_TEST_TOKEN.
+
+services:
+  # One-shot Go builder. Produces a static (CGO_ENABLED=0) mattermost binary
+  # so the runtime container can use a tiny base image without glibc concerns.
+  mattermost-server-builder:
+    image: golang:1.25-bookworm
+    working_dir: /workspace/server
+    volumes:
+      - .:/workspace
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    environment:
+      CGO_ENABLED: "0"
+      GOFLAGS: "-buildvcs=false"
+      BUILD_ENTERPRISE_READY: "false"
+    command:
+      - bash
+      - -c
+      - |
+        set -euo pipefail
+        echo "[server-builder] make setup-go-work"
+        SKIP_SETUP_GO_WORK=false BUILD_ENTERPRISE_READY=false make setup-go-work
+        echo "[server-builder] go build -> bin/mattermost"
+        mkdir -p bin
+        go build -trimpath -ldflags '-s -w' -o bin/mattermost ./cmd/mattermost
+        echo "[server-builder] done -> $(ls -lh bin/mattermost | awk '{print $5}')"
+
+  # One-shot webapp builder. `npm ci` at the workspace root installs every
+  # workspace package; `npm run build` produces webapp/channels/dist which
+  # the runtime container symlinks into server/client.
+  # Requires ~6 GiB Node heap — will fail on local Docker with insufficient
+  # memory. Works in CI with larger runners (ubuntu-latest-16-cores or similar).
+  mattermost-webapp-builder:
+    image: node:24-bookworm-slim
+    working_dir: /workspace/webapp
+    volumes:
+      - .:/workspace
+      - npm-cache:/root/.npm
+    environment:
+      CI: "true"
+      NODE_OPTIONS: "--max-old-space-size=6144"
+      CPPFLAGS: "-DPNG_ARM_NEON_OPT=0"
+    command:
+      - bash
+      - -c
+      - |
+        set -euo pipefail
+        apt-get update -qq
+        apt-get install -y --no-install-recommends \
+          ca-certificates git python3 make g++ \
+          autoconf automake libtool pkg-config nasm libpng-dev >/dev/null
+        echo "[webapp-builder] npm ci"
+        npm ci --include=dev --include=optional --no-audit --no-fund
+        echo "[webapp-builder] npm run build"
+        npm run build
+        echo "[webapp-builder] done -> webapp/channels/dist"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mmuser
+      POSTGRES_PASSWORD: mostest
+      POSTGRES_DB: mattermost_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mmuser -d mattermost_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # SMTP sink + web UI on :9000. Used so signup / password-reset flows succeed
+  # and so generated tests can fetch verification emails programmatically.
+  inbucket:
+    image: inbucket/inbucket:stable
+    environment:
+      INBUCKET_SMTP_DEFAULTACCEPT: "true"
+      INBUCKET_SMTP_DEFAULTSTORE: "true"
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9000/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mattermost:
+    image: ubuntu:24.04
+    working_dir: /workspace/server
+    volumes:
+      - .:/workspace
+      - mm-data:/workspace/server/data
+      - mm-logs:/workspace/server/logs
+      - mm-config:/workspace/server/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      inbucket:
+        condition: service_healthy
+    environment:
+      # --- Database -----------------------------------------------------------
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE: "postgres://mmuser:mostest@postgres:5432/mattermost_test?sslmode=disable&connect_timeout=10"
+      # --- Service ------------------------------------------------------------
+      MM_SERVICESETTINGS_LISTENADDRESS: ":8065"
+      MM_SERVICESETTINGS_SITEURL: "http://localhost:8065"
+      MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
+      MM_SERVICESETTINGS_ENABLETESTING: "true"
+      MM_SERVICESETTINGS_ENABLEDEVELOPER: "true"
+      # --- Email (Inbucket) ---------------------------------------------------
+      MM_EMAILSETTINGS_SMTPSERVER: inbucket
+      MM_EMAILSETTINGS_SMTPPORT: "2500"
+      MM_EMAILSETTINGS_REQUIREEMAILVERIFICATION: "false"
+      MM_EMAILSETTINGS_SENDEMAILNOTIFICATIONS: "true"
+      MM_EMAILSETTINGS_FEEDBACKEMAIL: "testbot@example.com"
+      MM_EMAILSETTINGS_FEEDBACKNAME: "Skyramp Testbot"
+      # --- Open server / signup so get-auth-token.sh can bootstrap the admin --
+      MM_TEAMSETTINGS_ENABLEOPENSERVER: "true"
+      MM_TEAMSETTINGS_ENABLEUSERCREATION: "true"
+      # --- Logging ------------------------------------------------------------
+      MM_LOGSETTINGS_CONSOLELEVEL: INFO
+      MM_LOGSETTINGS_FILELOCATION: /workspace/server/logs
+      MM_FILESETTINGS_DIRECTORY: /workspace/server/data/
+    ports:
+      - "8065:8065"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8065/api/v4/system/ping >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    command:
+      - bash
+      - -c
+      - |
+        set -euo pipefail
+        if [ ! -x bin/mattermost ]; then
+          echo "ERROR: server/bin/mattermost not found. Run 'docker compose -f docker-compose.testbot.yml run --rm mattermost-server-builder' first." >&2
+          exit 1
+        fi
+        if [ ! -d ../webapp/channels/dist ]; then
+          echo "[mattermost] WARNING: webapp/channels/dist not found — API will serve but SPA will not."
+          mkdir -p ../webapp/channels/dist
+        fi
+        # Install curl for healthcheck and TLS roots for outbound calls.
+        apt-get update -qq
+        apt-get install -y --no-install-recommends ca-certificates curl >/dev/null
+        # Match what `make client` does: server resolves static assets via ./client.
+        ln -sfn ../webapp/channels/dist client
+        mkdir -p data logs config
+        echo "[mattermost] launching bin/mattermost..."
+        exec ./bin/mattermost
+
+volumes:
+  go-mod-cache:
+  go-build-cache:
+  npm-cache:
+  mm-data:
+  mm-logs:
+  mm-config:

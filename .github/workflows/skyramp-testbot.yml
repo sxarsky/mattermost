@@ -1,0 +1,63 @@
+name: Skyramp Testbot
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.actor != 'skyramp-testbot[bot]' }}
+
+jobs:
+  testbot:
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@skyramp-testbot') && github.event.comment.user.login != 'skyramp-testbot[bot]')
+    runs-on: 'ubuntu-latest'
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: write
+
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          sudo docker image prune -a -f || true
+          df -h
+
+      - name: Generate GitHub App Token
+        id: skyramp-testbot-app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        with:
+          app-id: ${{ secrets.SKYRAMP_TESTBOT_APP_ID }}
+          private-key: ${{ secrets.SKYRAMP_TESTBOT_APP_PRIVATE_KEY }}
+          repositories: mattermost
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
+
+      - uses: skyramp/testbot@v0.10.2
+        with:
+          skyrampLicenseFile: ${{ secrets.SKYRAMP_LICENSE_FILE }}
+          anthropicApiKey: ${{ secrets.SKYRAMP_TESTBOT_API_KEY }}
+          githubToken: ${{ steps.skyramp-testbot-app-token.outputs.token }}
+          skyrampMcpVersion: 0.2.1-rc.1
+          skyrampExecutorVersion: v1.3.24
+          generatedTestsMode: separate-branch
+
+          targetSetupCommand: >-
+            docker compose -f docker-compose.eval.yml run --rm mattermost-server-builder &&
+            docker compose -f docker-compose.eval.yml run --rm mattermost-webapp-builder &&
+            docker compose -f docker-compose.eval.yml up -d --wait postgres inbucket mattermost
+          targetReadyCheckCommand: 'curl -fsS http://localhost:8065/api/v4/system/ping'
+          targetReadyCheckTimeout: 900
+          authTokenCommand: 'bash get-auth-token.sh'
+
+          autoCommit: true
+          postPrComment: true
+          enableDebug: true
